@@ -2,9 +2,36 @@ package main
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestSyncOnceRecordsTopLevelErrors(t *testing.T) {
+	wantError := errors.New("GitHub unavailable")
+	stats := syncOnce(context.Background(), Config{RunTimeout: time.Second}, func(context.Context, Config) (RunStats, error) {
+		return RunStats{TotalRead: 2}, wantError
+	})
+
+	if stats.Status != "error" || stats.Error != wantError.Error() {
+		t.Fatalf("error status = %+v", stats)
+	}
+	if stats.TotalRead != 2 {
+		t.Fatalf("total read = %d, want 2", stats.TotalRead)
+	}
+}
+
+func TestSyncOnceAppliesRunTimeout(t *testing.T) {
+	stats := syncOnce(context.Background(), Config{RunTimeout: 10 * time.Millisecond}, func(ctx context.Context, _ Config) (RunStats, error) {
+		<-ctx.Done()
+		return RunStats{}, ctx.Err()
+	})
+
+	if stats.Status != "error" || !strings.Contains(stats.Error, context.DeadlineExceeded.Error()) {
+		t.Fatalf("timeout status = %+v", stats)
+	}
+}
 
 func TestRunEveryRunsOnceWhenIntervalIsZero(t *testing.T) {
 	store := NewStatsStore("test", 0)
