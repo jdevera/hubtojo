@@ -28,5 +28,7 @@ COPY docker/entrypoint.sh .
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 
+EXPOSE 8080
+
 # Run the executable
 CMD ["./hubtotea"]

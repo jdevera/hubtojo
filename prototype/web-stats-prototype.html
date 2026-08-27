@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>HubToTea Web Prototype</title>
+	<script>
+		(function () {
+			var theme = "";
+			try {
+				theme = localStorage.getItem("hubtotea-theme") || "";
+			} catch (error) {
+				// Storage may be unavailable in a restricted browser context.
+			}
+			if (theme !== "light" && theme !== "dark") {
+				theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+			}
+			document.documentElement.dataset.theme = theme;
+		}());
+	</script>
+	<style>
+		:root {
+			color-scheme: light;
+			--page-background: #eef2f6;
+			--surface: #ffffff;
+			--text: #17202a;
+			--muted: #607080;
+			--border: #d8dde4;
+			--code-background: #e8edf2;
+			--link: #1268a5;
+			--toggle-track: #a8b2bd;
+			--toggle-thumb: #ffffff;
+			--running-background: #fff5d9;
+			--running-border: #e7c454;
+			--success-background: #def7e4;
+			--success-border: #74bf86;
+			--error-background: #fde7df;
+			--error-border: #df8e71;
+		}
+		:root[data-theme="dark"] {
+			color-scheme: dark;
+			--page-background: #11161c;
+			--surface: #1b232b;
+			--text: #edf2f6;
+			--muted: #aab5bf;
+			--border: #3a4651;
+			--code-background: #29333d;
+			--link: #76c4f5;
+			--toggle-track: #4da3d9;
+			--toggle-thumb: #ffffff;
+			--running-background: #3b3218;
+			--running-border: #a98a35;
+			--success-background: #183824;
+			--success-border: #4f9864;
+			--error-background: #40251f;
+			--error-border: #b66c55;
+		}
+		body {
+			margin: 0;
+			font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			background: var(--page-background);
+			color: var(--text);
+		}
+		main {
+			max-width: 1100px;
+			margin: 0 auto;
+			padding: 32px 20px 48px;
+		}
+		h1, h2, h3, p {
+			margin-top: 0;
+		}
+		.page-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 20px;
+			margin-bottom: 16px;
+		}
+		.page-header h1 {
+			margin: 0;
+		}
+		.theme-toggle {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			min-width: 112px;
+			min-height: 36px;
+			padding: 6px 9px;
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			background: var(--surface);
+			color: var(--text);
+			font: inherit;
+			font-size: 0.9rem;
+			cursor: pointer;
+		}
+		.theme-toggle:focus-visible {
+			outline: 2px solid var(--link);
+			outline-offset: 2px;
+		}
+		.theme-toggle-track {
+			position: relative;
+			width: 34px;
+			height: 20px;
+			flex: 0 0 34px;
+			border-radius: 10px;
+			background: var(--toggle-track);
+		}
+		.theme-toggle-thumb {
+			position: absolute;
+			top: 3px;
+			left: 3px;
+			width: 14px;
+			height: 14px;
+			border-radius: 50%;
+			background: var(--toggle-thumb);
+			transition: transform 150ms ease;
+		}
+		:root[data-theme="dark"] .theme-toggle-thumb {
+			transform: translateX(14px);
+		}
+		section {
+			margin: 24px 0;
+		}
+		.band {
+			background: var(--surface);
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			padding: 20px;
+		}
+		.stack {
+			display: grid;
+			gap: 12px;
+		}
+		.stats {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+			gap: 12px;
+		}
+		.card {
+			background: var(--surface);
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			padding: 16px;
+		}
+		.label {
+			color: var(--muted);
+			font-size: 0.9rem;
+		}
+		.value {
+			font-size: 1.7rem;
+			font-weight: 700;
+			margin-top: 4px;
+		}
+		.status {
+			display: inline-block;
+			padding: 4px 8px;
+			border-radius: 6px;
+			font-size: 0.85rem;
+			font-weight: 600;
+			border: 1px solid transparent;
+		}
+		.status-running {
+			background: var(--running-background);
+			border-color: var(--running-border);
+		}
+		.status-success {
+			background: var(--success-background);
+			border-color: var(--success-border);
+		}
+		.status-errors {
+			background: var(--error-background);
+			border-color: var(--error-border);
+		}
+		code {
+			background: var(--code-background);
+			border-radius: 4px;
+			padding: 2px 6px;
+		}
+		.list {
+			margin: 0;
+			padding-left: 20px;
+		}
+		.columns {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+			gap: 16px;
+		}
+		.muted {
+			color: var(--muted);
+		}
+		a {
+			color: var(--link);
+		}
+	</style>
+</head>
+<body>
+<main>
+	<section class="band">
+		<header class="page-header">
+			<h1>HubToTea</h1>
+			<button class="theme-toggle" id="theme-toggle" type="button" role="switch" aria-checked="false">
+				<span class="theme-toggle-track" aria-hidden="true"><span class="theme-toggle-thumb"></span></span>
+				<span>Dark mode</span>
+			</button>
+		</header>
+		<p>Version <code>v0.9.0-prototype</code>. Service started 2026-04-12T08:00:00Z.</p>
+		<p><a href="https://github.com/jdevera/hubtotea">GitHub repository</a></p>
+		<p>Stats JSON: <code>/stats</code></p>
+	</section>
+
+	<section class="band">
+		<h2>Current Run</h2>
+		<p><span class="status status-running">running</span></p>
+		<p>Run #42 started 2026-04-12T13:00:00Z.</p>
+		<div class="stats">
+			<div class="card"><div class="label">Interval</div><div class="value">3600</div></div>
+			<div class="card"><div class="label">Next run</div><div class="value">pending</div></div>
+			<div class="card"><div class="label">Workers</div><div class="value">5</div></div>
+		</div>
+	</section>
+
+	<section class="band">
+		<h2>Last Run</h2>
+		<p>Run #41 finished 2026-04-12T12:00:07Z after 7.118s with status <span class="status status-errors">completed_with_errors</span>.</p>
+		<div class="stats">
+			<div class="card"><div class="label">Total read</div><div class="value">18</div></div>
+			<div class="card"><div class="label">Created</div><div class="value">3</div></div>
+			<div class="card"><div class="label">Skipped</div><div class="value">13</div></div>
+			<div class="card"><div class="label">Would create</div><div class="value">1</div></div>
+			<div class="card"><div class="label">Failed</div><div class="value">1</div></div>
+		</div>
+	</section>
+
+	<section class="columns">
+		<div class="card">
+			<h3>New Repositories</h3>
+			<ul class="list">
+				<li>jdevera/docs-archive</li>
+				<li>jdevera/hubtotea-web</li>
+				<li>jdevera/infra-scratch</li>
+			</ul>
+		</div>
+		<div class="card">
+			<h3>Dry Run Creates</h3>
+			<ul class="list">
+				<li>jdevera/experimental-mirror</li>
+			</ul>
+		</div>
+		<div class="card">
+			<h3>Failures</h3>
+			<ul class="list">
+				<li>jdevera/private-monorepo: 403 API rate limit exceeded</li>
+			</ul>
+		</div>
+	</section>
+
+	<section class="band">
+		<h2>Schedule</h2>
+		<p>Interval: 3600 seconds.</p>
+		<p>Next run: 2026-04-12T14:00:00Z.</p>
+	</section>
+
+	<section class="band stack">
+		<h2>Other States</h2>
+		<div class="card">
+			<h3>Clean Successful Run</h3>
+			<p>Run #40 finished 2026-04-12T11:00:03Z after 3.201s with status <span class="status status-success">success</span>.</p>
+			<div class="stats">
+				<div class="card"><div class="label">Total read</div><div class="value">18</div></div>
+				<div class="card"><div class="label">Created</div><div class="value">0</div></div>
+				<div class="card"><div class="label">Skipped</div><div class="value">18</div></div>
+				<div class="card"><div class="label">Would create</div><div class="value">0</div></div>
+				<div class="card"><div class="label">Failed</div><div class="value">0</div></div>
+			</div>
+		</div>
+		<div class="card">
+			<h3>First Startup Before Any Run Completes</h3>
+			<p>No completed run yet.</p>
+			<p class="muted">No next run is scheduled.</p>
+		</div>
+		<div class="card">
+			<h3>Run-Level Error</h3>
+			<p>Run #39 finished 2026-04-12T10:00:01Z after 1.004s with status <span class="status status-errors">error</span>.</p>
+			<p>Error: failed to fetch repositories from GitHub: 401 Bad credentials</p>
+		</div>
+	</section>
+</main>
+	<script>
+		(function () {
+			var toggle = document.getElementById("theme-toggle");
+			function updateToggle() {
+				toggle.setAttribute("aria-checked", String(document.documentElement.dataset.theme === "dark"));
+			}
+			toggle.addEventListener("click", function () {
+				var theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+				document.documentElement.dataset.theme = theme;
+				try {
+					localStorage.setItem("hubtotea-theme", theme);
+				} catch (error) {
+					// The selected theme still applies for the current page.
+				}
+				updateToggle();
+			});
+			updateToggle();
+		}());
+	</script>
+</body>
+</html>

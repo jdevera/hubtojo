@@ -28,6 +28,14 @@ func GetEnvInt(key string, defValue int) int {
 	return num
 }
 
+func GetEnvString(key string, defValue string) string {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		return defValue
+	}
+	return value
+}
+
 func GetEnvStrict(key string) (string, error) {
 	value, ok := os.LookupEnv(key)
 	if !ok {

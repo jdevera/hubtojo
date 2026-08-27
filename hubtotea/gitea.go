@@ -18,6 +18,23 @@ const (
 	Failed
 )
 
+func (r MirrorResult) String() string {
+	switch r {
+	case Input:
+		return "input"
+	case Created:
+		return "created"
+	case WouldCreate:
+		return "would_create"
+	case Skipped:
+		return "skipped"
+	case Failed:
+		return "failed"
+	default:
+		return "unknown"
+	}
+}
+
 func GiteaGetUsername(client *gitea.Client) (string, error) {
 	user, _, err := client.GetMyUserInfo()
 	if err != nil {

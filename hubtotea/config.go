@@ -20,6 +20,7 @@ type Config struct {
 	MirrorForks        bool
 	DryRun             bool
 	SyncInterval       int
+	WebAddr            string
 }
 
 func (c *Config) log() {
@@ -37,6 +38,7 @@ func (c *Config) log() {
 	log.Printf("  Mirror Private Repos: %t\n", c.MirrorPrivateRepos)
 	log.Printf("  Mirror Forks: %t\n", c.MirrorForks)
 	log.Printf("  SyncInterval: %d (seconds)\n", c.SyncInterval)
+	log.Printf("  Web Address: %s\n", c.WebAddr)
 	log.Printf("  Number of Workers: %d\n", c.NumWorkers)
 	log.Printf("  Dry Run: %t\n", c.DryRun)
 }
@@ -106,6 +108,7 @@ func MakeConfigFromEnv() (Config, error) {
 		MirrorForks:        GetEnvBool("HUBTOTEA_MIRROR_FORKS", false),
 		DryRun:             GetEnvBool("HUBTOTEA_DRY_RUN", false),
 		SyncInterval:       GetEnvInt("HUBTOTEA_SYNC_INTERVAL", 3600),
+		WebAddr:            GetEnvString("HUBTOTEA_WEB_ADDR", ":8080"),
 	}
 	err = c.validate()
 	if err != nil {

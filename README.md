@@ -10,11 +10,15 @@ Best run with docker.
 docker run \
     -d \
     --restart=unless-stopped \
+    -p 8080:8080 \
     -e GITEA_URL="http://gitea:3000" \
     -e GITEA_TOKEN="your gitea token" \
-    -e GITHUB_USER="your github user" \
+    -e GITHUB_USERNAME="your github user" \
     jdevera/hubtotea:latest
 ```
+
+The web status page is available on `/`, and the dashboard-friendly JSON stats
+endpoint is available on `/stats`.
 
 ## What can be mirrored
 
@@ -38,6 +42,7 @@ Each of these groups can be enabled or disabled with the environment variables.
 | `HUBTOTEA_DRY_RUN`              | Set to true or 1 to skip the write operations and instead just log them          | No        | `false` |
 | `HUBTOTEA_NUM_WORKERS`          | The number of concurrent workers to use when mirroring repositories              | No        | `5`     |
 | `HUBTOTEA_SYNC_INTERVAL`        | The interval in seconds to wait between syncs. Set to 0 to run only once         | No        | `3600`  |
+| `HUBTOTEA_WEB_ADDR`             | The address for the status page and stats endpoint                               | No        | `:8080` |
 
 
 ## Custom certificates
