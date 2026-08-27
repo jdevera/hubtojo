@@ -23,15 +23,17 @@ endpoint is available on `/stats`.
 ## Releases
 
 Release images are published to the GitHub Container Registry for Linux AMD64
-and ARM64. A semantic version tag builds and publishes matching image tags:
+and ARM64. Publishing a GitHub Release with a semantic version tag builds and
+publishes matching image tags:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+gh release create v0.2.0 --generate-notes
 ```
 
 This publishes `ghcr.io/jdevera/hubtojo:0.2.0`, `:0.2`, and `:latest`. The Git
-tag is also embedded in the binary as its version.
+tag is also embedded in the binary as its version. Starting with `v1.0.0`,
+releases also publish a major-only tag such as `:1`. Prereleases publish only
+their exact version and do not update floating tags or `:latest`.
 
 ## What can be mirrored
 
