@@ -141,6 +141,30 @@ func repositoryNames(repositories []*github.Repository) []string {
 	return names
 }
 
+func TestGithubTokenAuthenticatesPublicRepositoryRequests(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Header.Get("Authorization") != "Bearer github-token" {
+			http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		fmt.Fprint(w, `[]`)
+	}))
+	defer server.Close()
+
+	client := github.NewClient(server.Client())
+	client.BaseURL, _ = url.Parse(server.URL + "/")
+	token := "github-token"
+	_, err := getGithubRepos(context.Background(), client, Config{
+		GithubUsername:    "source",
+		GithubToken:       &token,
+		MirrorPublicRepos: true,
+	})
+	if err != nil {
+		t.Fatalf("get repositories: %v", err)
+	}
+}
+
 func TestPrivateRepoTokenMustMatchConfiguredUser(t *testing.T) {
 	tests := []struct {
 		name      string

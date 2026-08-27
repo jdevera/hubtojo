@@ -45,6 +45,9 @@ func GetGithubRepos(ctx context.Context, config Config) ([]*github.Repository, e
 
 func getGithubRepos(ctx context.Context, client *github.Client, config Config) ([]*github.Repository, error) {
 	var repos []*github.Repository
+	if config.GithubToken != nil {
+		client = client.WithAuthToken(*config.GithubToken)
+	}
 
 	opt := &ListOptions{
 		PerPage: 30,
@@ -52,7 +55,6 @@ func getGithubRepos(ctx context.Context, client *github.Client, config Config) (
 
 	username := config.GithubUsername
 	if config.MirrorPrivateRepos {
-		client = client.WithAuthToken(*config.GithubToken)
 		authenticatedUser, _, err := client.Users.Get(ctx, "")
 		if err != nil {
 			return nil, fmt.Errorf("get authenticated GitHub user: %w", err)
