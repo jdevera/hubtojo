@@ -18,7 +18,7 @@ var statsPage = template.Must(template.New("stats").Funcs(template.FuncMap{
 	"formatDuration": formatWebDuration,
 }).ParseFS(templateFS, "templates/stats.html"))
 
-func StartWebServer(addr string, store *StatsStore) (*http.Server, error) {
+func StartWebServer(addr string, store *StatsStore, metrics *Metrics) (*http.Server, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -36,6 +36,7 @@ func StartWebServer(addr string, store *StatsStore) (*http.Server, error) {
 			log.Printf("Error encoding stats: %s\n", err)
 		}
 	})
+	mux.Handle("/metrics", metrics.Handler())
 
 	server := &http.Server{
 		Addr:              addr,

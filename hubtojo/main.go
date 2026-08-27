@@ -106,25 +106,58 @@ func syncOnce(ctx context.Context, config Config, synchronize repositorySynchron
 	return runStats
 }
 
-func runEvery(ctx context.Context, interval time.Duration, store *StatsStore, f func(context.Context, int) RunStats) {
+type runRecorder interface {
+	StartRun(int, time.Time)
+	FinishRun(RunStats, time.Time)
+	SetNextRun(time.Time)
+	ClearNextRun()
+}
+
+type runRecorders []runRecorder
+
+func (recorders runRecorders) StartRun(runCount int, startedAt time.Time) {
+	for _, recorder := range recorders {
+		recorder.StartRun(runCount, startedAt)
+	}
+}
+
+func (recorders runRecorders) FinishRun(stats RunStats, finishedAt time.Time) {
+	for _, recorder := range recorders {
+		recorder.FinishRun(stats, finishedAt)
+	}
+}
+
+func (recorders runRecorders) SetNextRun(nextRunAt time.Time) {
+	for _, recorder := range recorders {
+		recorder.SetNextRun(nextRunAt)
+	}
+}
+
+func (recorders runRecorders) ClearNextRun() {
+	for _, recorder := range recorders {
+		recorder.ClearNextRun()
+	}
+}
+
+func runEvery(ctx context.Context, interval time.Duration, recorder runRecorder, f func(context.Context, int) RunStats) {
 	runCount := 1
 	for {
 		select {
 		case <-ctx.Done():
-			store.ClearNextRun()
+			recorder.ClearNextRun()
 			return
 		default:
 		}
 
 		startTime := time.Now()
-		store.StartRun(runCount, startTime)
+		recorder.StartRun(runCount, startTime)
 		stats := f(ctx, runCount)
 		stats.RunCount = runCount
 		stats.StartedAt = startTime
 		elapsed := time.Since(startTime)
-		store.FinishRun(stats, time.Now())
+		recorder.FinishRun(stats, time.Now())
 		if interval <= 0 {
-			store.ClearNextRun()
+			recorder.ClearNextRun()
 			return
 		}
 		nextRun := interval - elapsed
@@ -133,14 +166,14 @@ func runEvery(ctx context.Context, interval time.Duration, store *StatsStore, f 
 			nextRun = 0
 		}
 		nextRunAt := time.Now().Add(nextRun)
-		store.SetNextRun(nextRunAt)
+		recorder.SetNextRun(nextRunAt)
 		log.Printf("Next run in ~%s\n", nextRun.Round(time.Second))
 		if nextRun > 0 {
 			timer := time.NewTimer(nextRun)
 			select {
 			case <-ctx.Done():
 				timer.Stop()
-				store.ClearNextRun()
+				recorder.ClearNextRun()
 				return
 			case <-timer.C:
 			}
@@ -157,12 +190,13 @@ func main() {
 	}
 
 	statsStore := NewStatsStore(Version, config.SyncInterval)
-	if _, err := StartWebServer(config.WebAddr, statsStore); err != nil {
+	metrics := NewMetrics(Version, config.SyncInterval)
+	if _, err := StartWebServer(config.WebAddr, statsStore, metrics); err != nil {
 		log.Fatalf("Web server error: %s\n", err)
 	}
 
 	runEvery(context.Background(), time.Duration(config.SyncInterval)*time.Second,
-		statsStore,
+		runRecorders{statsStore, metrics},
 		func(ctx context.Context, runCount int) RunStats {
 			log.Println("--------------------------------------------------")
 			log.Printf("HubToJo version: %s\n", Version)

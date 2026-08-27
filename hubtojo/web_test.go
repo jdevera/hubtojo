@@ -27,7 +27,11 @@ func TestStartWebServerReturnsBindError(t *testing.T) {
 	}
 	defer listener.Close()
 
-	server, err := StartWebServer(listener.Addr().String(), NewStatsStore("test", 3600))
+	server, err := StartWebServer(
+		listener.Addr().String(),
+		NewStatsStore("test", 3600),
+		NewMetrics("test", 3600),
+	)
 	if err == nil {
 		server.Close()
 		t.Fatal("expected an error when the web address is already in use")

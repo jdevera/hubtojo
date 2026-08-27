@@ -17,8 +17,9 @@ docker run \
     ghcr.io/jdevera/hubtojo:latest
 ```
 
-The web status page is available on `/`, and the dashboard-friendly JSON stats
-endpoint is available on `/stats`.
+The web status page is available on `/`, the dashboard-friendly JSON stats
+endpoint is available on `/stats`, and Prometheus metrics are available on
+`/metrics`.
 
 ## Status endpoint
 
@@ -86,10 +87,77 @@ individual failures. Empty arrays are currently encoded as `null`, so clients
 should treat `null` as an empty list. Result counters are finalized when a run
 completes; `current_run` reports lifecycle state rather than live progress.
 
-The web page and `/stats` do not require authentication. They never include
-configured tokens, but repository names and error messages may be sensitive.
-Protect port 8080 with network policy or an authenticated reverse proxy when it
-should not be publicly accessible.
+The web page, `/stats`, and `/metrics` do not require authentication. They never
+include configured tokens, but the web page and `/stats` may contain sensitive
+repository names and error messages. Protect port 8080 with network policy or
+an authenticated reverse proxy when it should not be publicly accessible.
+
+## Prometheus metrics
+
+`GET /metrics` exposes synchronization and standard Go process metrics in the
+Prometheus exposition format:
+
+```bash
+curl http://localhost:8080/metrics
+```
+
+Configure Prometheus to scrape the HubToJo container directly:
+
+```yaml
+scrape_configs:
+  - job_name: hubtojo
+    static_configs:
+      - targets:
+          - hubtojo:8080
+```
+
+HubToJo exports these application metrics:
+
+| Metric | Meaning |
+|--------|---------|
+| `hubtojo_build_info` | Build information labeled by HubToJo version |
+| `hubtojo_run_in_progress` | `1` while synchronization is running, otherwise `0` |
+| `hubtojo_current_run_start_timestamp_seconds` | Start time of the active run, or `0` while idle |
+| `hubtojo_runs_total` | Completed runs labeled by `status` |
+| `hubtojo_repository_results_total` | Repository outcomes labeled by `result` |
+| `hubtojo_last_run_status` | Last completed status represented as one-hot gauges |
+| `hubtojo_last_run_repository_results` | Repository outcomes from the last completed run |
+| `hubtojo_last_run_timestamp_seconds` | Completion time of the last run, or `0` before the first run |
+| `hubtojo_next_run_timestamp_seconds` | Scheduled next run, or `0` while running and in one-shot mode |
+| `hubtojo_sync_interval_seconds` | Configured synchronization interval |
+| `hubtojo_run_duration_seconds` | Histogram of completed run durations |
+
+Run status labels are `success`, `completed_with_errors`, `error`, and
+`unknown`. Repository result labels are `created`, `skipped`, `would_create`,
+and `failed`. Repository names and error strings are deliberately excluded from
+metric labels to keep cardinality bounded; use `/stats` or logs for those
+details.
+
+Useful PromQL queries include:
+
+```promql
+# Repository outcomes over the last 24 hours
+sum by (result) (increase(hubtojo_repository_results_total[24h]))
+
+# Last run failed or completed with repository errors
+hubtojo_last_run_status{status=~"completed_with_errors|error"} == 1
+
+# Scheduler is overdue while the process is idle
+hubtojo_sync_interval_seconds > 0
+and hubtojo_run_in_progress == 0
+and (time() - hubtojo_last_run_timestamp_seconds > 2 * hubtojo_sync_interval_seconds)
+
+# Prometheus cannot scrape HubToJo
+up{job="hubtojo"} == 0
+```
+
+Metrics live in process memory and reset when HubToJo restarts. This is normal
+for Prometheus counters: use `rate()` or `increase()` instead of treating raw
+`_total` values as durable lifetime totals. Prometheus retains previously
+scraped samples, and `process_start_time_seconds` identifies the current
+process lifetime. A run interrupted by process termination is not recorded as
+completed; logs remain the appropriate source for repository-level audit
+details.
 
 ## Releases
 

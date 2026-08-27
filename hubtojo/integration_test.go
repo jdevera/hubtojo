@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-github/v63/github"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 func TestSynchronizationRunIsPublishedByStatsEndpoint(t *testing.T) {
@@ -34,7 +36,8 @@ func TestSynchronizationRunIsPublishedByStatsEndpoint(t *testing.T) {
 		RunTimeout:        time.Second,
 	}
 	store := NewStatsStore("integration-test", 0)
-	webServer, err := StartWebServer("127.0.0.1:0", store)
+	metrics := NewMetrics("integration-test", 0)
+	webServer, err := StartWebServer("127.0.0.1:0", store, metrics)
 	if err != nil {
 		t.Fatalf("start web server: %v", err)
 	}
@@ -49,7 +52,7 @@ func TestSynchronizationRunIsPublishedByStatsEndpoint(t *testing.T) {
 	synchronize := func(ctx context.Context, config Config) (RunStats, error) {
 		return syncRepoList(ctx, config, listRepositories, ForgejoMirror)
 	}
-	runEvery(context.Background(), 0, store, func(ctx context.Context, _ int) RunStats {
+	runEvery(context.Background(), 0, runRecorders{store, metrics}, func(ctx context.Context, _ int) RunStats {
 		return syncOnce(ctx, config, synchronize)
 	})
 
@@ -74,6 +77,33 @@ func TestSynchronizationRunIsPublishedByStatsEndpoint(t *testing.T) {
 		t.Fatal("one-shot synchronization did not finish cleanly")
 	}
 	assertIntegrationRunStats(t, snapshot.LastRun)
+	assertIntegrationMetrics(t, webServer.Addr)
+}
+
+func assertIntegrationMetrics(t *testing.T, addr string) {
+	t.Helper()
+	expected := strings.NewReader(`
+# HELP hubtojo_repository_results_total Total number of repository synchronization results by outcome.
+# TYPE hubtojo_repository_results_total counter
+hubtojo_repository_results_total{result="created"} 1
+hubtojo_repository_results_total{result="failed"} 1
+hubtojo_repository_results_total{result="skipped"} 1
+hubtojo_repository_results_total{result="would_create"} 0
+# HELP hubtojo_runs_total Total number of completed synchronization runs by status.
+# TYPE hubtojo_runs_total counter
+hubtojo_runs_total{status="completed_with_errors"} 1
+hubtojo_runs_total{status="error"} 0
+hubtojo_runs_total{status="success"} 0
+hubtojo_runs_total{status="unknown"} 0
+`)
+	if err := testutil.ScrapeAndCompare(
+		"http://"+addr+"/metrics",
+		expected,
+		"hubtojo_repository_results_total",
+		"hubtojo_runs_total",
+	); err != nil {
+		t.Fatalf("compare metrics: %v", err)
+	}
 }
 
 func assertIntegrationRunStats(t *testing.T, stats *RunStats) {
