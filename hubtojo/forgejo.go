@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 
 	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3"
 	"github.com/google/go-github/v63/github"
@@ -45,10 +46,13 @@ func ForgejoMirror(ctx context.Context, githubRepo *github.Repository, config Co
 	if err != nil {
 		return Failed, err
 	}
-	forgejoRepo, _, err := client.GetRepo(config.ForgejoUsername, *githubRepo.Name)
+	forgejoRepo, resp, err := client.GetRepo(config.ForgejoUsername, *githubRepo.Name)
 	if err == nil {
 		log.Printf("%sSkipping repository %s. It already exists on Forgejo\n", prefix, forgejoRepo.FullName)
 		return Skipped, nil
+	}
+	if resp == nil || resp.StatusCode != http.StatusNotFound {
+		return Failed, fmt.Errorf("check Forgejo repository %s/%s: %w", config.ForgejoUsername, *githubRepo.Name, err)
 	}
 	if config.DryRun {
 		log.Printf("%s[DRY-RUN] Would create repository %s on Forgejo\n", prefix, *githubRepo.FullName)
