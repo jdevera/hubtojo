@@ -55,6 +55,7 @@ Each of these groups can be enabled or disabled with the environment variables.
 | `HUBTOJO_DRY_RUN`               | Set to true or 1 to skip the write operations and instead just log them          | No        | `false` |
 | `HUBTOJO_NUM_WORKERS`           | The number of concurrent workers to use when mirroring repositories              | No        | `5`     |
 | `HUBTOJO_SYNC_INTERVAL`         | The interval in seconds to wait between syncs. Set to 0 to run only once         | No        | `3600`  |
+| `HUBTOJO_RUN_TIMEOUT`           | Maximum duration in seconds for startup checks and each synchronization run       | No        | `3600`  |
 | `HUBTOJO_WEB_ADDR`              | The address for the status page and stats endpoint                               | No        | `:8080` |
 
 

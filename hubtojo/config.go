@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -20,6 +21,7 @@ type Config struct {
 	MirrorForks        bool
 	DryRun             bool
 	SyncInterval       int
+	RunTimeout         time.Duration
 	WebAddr            string
 }
 
@@ -38,6 +40,7 @@ func (c *Config) log() {
 	log.Printf("  Mirror Private Repos: %t\n", c.MirrorPrivateRepos)
 	log.Printf("  Mirror Forks: %t\n", c.MirrorForks)
 	log.Printf("  SyncInterval: %d (seconds)\n", c.SyncInterval)
+	log.Printf("  Run Timeout: %s\n", c.RunTimeout)
 	log.Printf("  Web Address: %s\n", c.WebAddr)
 	log.Printf("  Number of Workers: %d\n", c.NumWorkers)
 	log.Printf("  Dry Run: %t\n", c.DryRun)
@@ -45,7 +48,9 @@ func (c *Config) log() {
 
 func (c *Config) resolve() error {
 	if c.ForgejoUsername == "" {
-		client, err := ForgejoClient(context.Background(), *c)
+		ctx, cancel := c.withRunTimeout(context.Background())
+		defer cancel()
+		client, err := ForgejoClient(ctx, *c)
 		if err != nil {
 			return fmt.Errorf("error creating Forgejo client: %w\n", err)
 		}
@@ -71,6 +76,9 @@ func (c *Config) validate() error {
 	}
 	if c.MirrorPrivateRepos && c.GithubToken == nil {
 		errors = append(errors, "GITHUB_TOKEN environment variable not set (required for mirroring private repos)")
+	}
+	if c.RunTimeout <= 0 {
+		errors = append(errors, "HUBTOJO_RUN_TIMEOUT must be greater than 0")
 	}
 	if len(errors) > 0 {
 		return fmt.Errorf("config validation errors: %s", strings.Join(errors, ", "))
@@ -108,6 +116,7 @@ func MakeConfigFromEnv() (Config, error) {
 		MirrorForks:        GetEnvBool("HUBTOJO_MIRROR_FORKS", false),
 		DryRun:             GetEnvBool("HUBTOJO_DRY_RUN", false),
 		SyncInterval:       GetEnvInt("HUBTOJO_SYNC_INTERVAL", 3600),
+		RunTimeout:         time.Duration(GetEnvInt("HUBTOJO_RUN_TIMEOUT", 3600)) * time.Second,
 		WebAddr:            GetEnvString("HUBTOJO_WEB_ADDR", ":8080"),
 	}
 	err = c.validate()
@@ -119,4 +128,8 @@ func MakeConfigFromEnv() (Config, error) {
 		return Config{}, fmt.Errorf("error resolving config: %w", err)
 	}
 	return c, nil
+}
+
+func (c Config) withRunTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, c.RunTimeout)
 }

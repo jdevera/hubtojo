@@ -121,7 +121,9 @@ func main() {
 			config.log()
 			log.Println("--------------------------------------------------")
 
-			runStats, err := SyncRepoList(context.Background(), config)
+			runCtx, cancel := config.withRunTimeout(context.Background())
+			runStats, err := SyncRepoList(runCtx, config)
+			cancel()
 			log.Printf("--------------------------------------------------\n")
 			log.Printf("Results:\n")
 			if err != nil {
