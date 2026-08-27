@@ -1,6 +1,6 @@
 services:
   hubtojo:
-    image: jdevera/hubtojo:latest
+    image: ghcr.io/jdevera/hubtojo:latest
     build:
       context: .
       dockerfile: Dockerfile

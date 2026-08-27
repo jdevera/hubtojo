@@ -3,13 +3,14 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 RUN apk --no-cache add git
+ARG VERSION=dev
 COPY hubtojo/go.mod hubtojo/go.sum ./
 RUN go mod download
 RUN --mount=target=. \
   mkdir -p /build && \
   cd hubtojo && \
   CGO_ENABLED=0 \
-  go build -ldflags "-X main.Version=$(git describe --tags --always)" -a -installsuffix cgo \
+  go build -ldflags "-X main.Version=${VERSION}" -a -installsuffix cgo \
   -o /build/hubtojo \
   .
 

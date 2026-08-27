@@ -14,11 +14,24 @@ docker run \
     -e FORGEJO_URL="http://forgejo:3000" \
     -e FORGEJO_TOKEN="your Forgejo token" \
     -e GITHUB_USERNAME="your github user" \
-    jdevera/hubtojo:latest
+    ghcr.io/jdevera/hubtojo:latest
 ```
 
 The web status page is available on `/`, and the dashboard-friendly JSON stats
 endpoint is available on `/stats`.
+
+## Releases
+
+Release images are published to the GitHub Container Registry for Linux AMD64
+and ARM64. A semantic version tag builds and publishes matching image tags:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+This publishes `ghcr.io/jdevera/hubtojo:0.2.0`, `:0.2`, and `:latest`. The Git
+tag is also embedded in the binary as its version.
 
 ## What can be mirrored
 
