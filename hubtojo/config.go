@@ -52,7 +52,7 @@ func (c *Config) resolve() error {
 		defer cancel()
 		client, err := ForgejoClient(ctx, *c)
 		if err != nil {
-			return fmt.Errorf("error creating Forgejo client: %w\n", err)
+			return fmt.Errorf("error creating Forgejo client: %w", err)
 		}
 		username, err := ForgejoGetUsername(client)
 		if err != nil {
@@ -74,8 +74,14 @@ func (c *Config) validate() error {
 	if c.ForgejoToken == "" {
 		errors = append(errors, "FORGEJO_TOKEN environment variable not set")
 	}
-	if c.MirrorPrivateRepos && c.GithubToken == nil {
+	if c.MirrorPrivateRepos && (c.GithubToken == nil || strings.TrimSpace(*c.GithubToken) == "") {
 		errors = append(errors, "GITHUB_TOKEN environment variable not set (required for mirroring private repos)")
+	}
+	if c.NumWorkers <= 0 {
+		errors = append(errors, "HUBTOJO_NUM_WORKERS must be greater than 0")
+	}
+	if c.SyncInterval < 0 {
+		errors = append(errors, "HUBTOJO_SYNC_INTERVAL must be greater than or equal to 0")
 	}
 	if c.RunTimeout <= 0 {
 		errors = append(errors, "HUBTOJO_RUN_TIMEOUT must be greater than 0")
@@ -101,6 +107,34 @@ func MakeConfigFromEnv() (Config, error) {
 	if err != nil {
 		envErrors = append(envErrors, err)
 	}
+	numWorkers, err := GetEnvInt("HUBTOJO_NUM_WORKERS", 5)
+	if err != nil {
+		envErrors = append(envErrors, err)
+	}
+	mirrorPublicRepos, err := GetEnvBool("HUBTOJO_MIRROR_PUBLIC_REPOS", true)
+	if err != nil {
+		envErrors = append(envErrors, err)
+	}
+	mirrorPrivateRepos, err := GetEnvBool("HUBTOJO_MIRROR_PRIVATE_REPOS", false)
+	if err != nil {
+		envErrors = append(envErrors, err)
+	}
+	mirrorForks, err := GetEnvBool("HUBTOJO_MIRROR_FORKS", false)
+	if err != nil {
+		envErrors = append(envErrors, err)
+	}
+	dryRun, err := GetEnvBool("HUBTOJO_DRY_RUN", false)
+	if err != nil {
+		envErrors = append(envErrors, err)
+	}
+	syncInterval, err := GetEnvInt("HUBTOJO_SYNC_INTERVAL", 3600)
+	if err != nil {
+		envErrors = append(envErrors, err)
+	}
+	runTimeout, err := GetEnvInt("HUBTOJO_RUN_TIMEOUT", 3600)
+	if err != nil {
+		envErrors = append(envErrors, err)
+	}
 	if len(envErrors) > 0 {
 		return Config{}, errors.Join(envErrors...)
 	}
@@ -110,13 +144,13 @@ func MakeConfigFromEnv() (Config, error) {
 		ForgejoUrl:         forgejoUrl,
 		ForgejoToken:       forgejoToken,
 		GithubToken:        GetEnvOptional("GITHUB_TOKEN"),
-		NumWorkers:         GetEnvInt("HUBTOJO_NUM_WORKERS", 5),
-		MirrorPublicRepos:  GetEnvBool("HUBTOJO_MIRROR_PUBLIC_REPOS", true),
-		MirrorPrivateRepos: GetEnvBool("HUBTOJO_MIRROR_PRIVATE_REPOS", false),
-		MirrorForks:        GetEnvBool("HUBTOJO_MIRROR_FORKS", false),
-		DryRun:             GetEnvBool("HUBTOJO_DRY_RUN", false),
-		SyncInterval:       GetEnvInt("HUBTOJO_SYNC_INTERVAL", 3600),
-		RunTimeout:         time.Duration(GetEnvInt("HUBTOJO_RUN_TIMEOUT", 3600)) * time.Second,
+		NumWorkers:         numWorkers,
+		MirrorPublicRepos:  mirrorPublicRepos,
+		MirrorPrivateRepos: mirrorPrivateRepos,
+		MirrorForks:        mirrorForks,
+		DryRun:             dryRun,
+		SyncInterval:       syncInterval,
+		RunTimeout:         time.Duration(runTimeout) * time.Second,
 		WebAddr:            GetEnvString("HUBTOJO_WEB_ADDR", ":8080"),
 	}
 	err = c.validate()

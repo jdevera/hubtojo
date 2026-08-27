@@ -2,30 +2,36 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strconv"
+	"strings"
 )
 
-func GetEnvBool(key string, defValue bool) bool {
+func GetEnvBool(key string, defValue bool) (bool, error) {
 	value, ok := os.LookupEnv(key)
 	if !ok {
-		return defValue
+		return defValue, nil
 	}
-	return value == "true" || value == "1"
+	switch strings.ToLower(value) {
+	case "true", "1":
+		return true, nil
+	case "false", "0":
+		return false, nil
+	default:
+		return false, fmt.Errorf("environment variable %s must be true, false, 1, or 0", key)
+	}
 }
 
-func GetEnvInt(key string, defValue int) int {
+func GetEnvInt(key string, defValue int) (int, error) {
 	value, ok := os.LookupEnv(key)
 	if !ok {
-		return defValue
+		return defValue, nil
 	}
 	num, err := strconv.Atoi(value)
 	if err != nil {
-		log.Printf("Error: %s environment variable must be an integer\n", key)
-		os.Exit(1)
+		return 0, fmt.Errorf("environment variable %s must be an integer: %w", key, err)
 	}
-	return num
+	return num, nil
 }
 
 func GetEnvString(key string, defValue string) string {
@@ -38,15 +44,15 @@ func GetEnvString(key string, defValue string) string {
 
 func GetEnvStrict(key string) (string, error) {
 	value, ok := os.LookupEnv(key)
-	if !ok {
-		return "", fmt.Errorf("environment variable %s not set", key)
+	if !ok || strings.TrimSpace(value) == "" {
+		return "", fmt.Errorf("environment variable %s not set or empty", key)
 	}
 	return value, nil
 }
 
 func GetEnvOptional(key string) *string {
 	value, ok := os.LookupEnv(key)
-	if !ok {
+	if !ok || strings.TrimSpace(value) == "" {
 		return nil
 	}
 	return &value
