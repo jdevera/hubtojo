@@ -71,12 +71,19 @@ func SyncRepoList(ctx context.Context, config Config) (RunStats, error) {
 	return resultsStats, nil
 }
 
-func runEvery(interval time.Duration, store *StatsStore, f func(int) RunStats) {
+func runEvery(ctx context.Context, interval time.Duration, store *StatsStore, f func(context.Context, int) RunStats) {
 	runCount := 1
 	for {
+		select {
+		case <-ctx.Done():
+			store.ClearNextRun()
+			return
+		default:
+		}
+
 		startTime := time.Now()
 		store.StartRun(runCount, startTime)
-		stats := f(runCount)
+		stats := f(ctx, runCount)
 		stats.RunCount = runCount
 		stats.StartedAt = startTime
 		elapsed := time.Since(startTime)
@@ -94,7 +101,14 @@ func runEvery(interval time.Duration, store *StatsStore, f func(int) RunStats) {
 		store.SetNextRun(nextRunAt)
 		log.Printf("Next run in ~%s\n", nextRun.Round(time.Second))
 		if nextRun > 0 {
-			time.Sleep(nextRun)
+			timer := time.NewTimer(nextRun)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				store.ClearNextRun()
+				return
+			case <-timer.C:
+			}
 		}
 		runCount++
 	}
@@ -112,16 +126,16 @@ func main() {
 		log.Fatalf("Web server error: %s\n", err)
 	}
 
-	runEvery(time.Duration(config.SyncInterval)*time.Second,
+	runEvery(context.Background(), time.Duration(config.SyncInterval)*time.Second,
 		statsStore,
-		func(runCount int) RunStats {
+		func(ctx context.Context, runCount int) RunStats {
 			log.Println("--------------------------------------------------")
 			log.Printf("HubToJo version: %s\n", Version)
 			log.Printf("Run #%d\n", runCount)
 			config.log()
 			log.Println("--------------------------------------------------")
 
-			runCtx, cancel := config.withRunTimeout(context.Background())
+			runCtx, cancel := config.withRunTimeout(ctx)
 			runStats, err := SyncRepoList(runCtx, config)
 			cancel()
 			log.Printf("--------------------------------------------------\n")
