@@ -46,6 +46,7 @@ func StartWebServer(addr string, store *StatsStore) (*http.Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	server.Addr = listener.Addr().String()
 	go func() {
 		log.Printf("Web server listening on %s\n", listener.Addr())
 		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {

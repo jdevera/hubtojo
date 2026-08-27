@@ -12,13 +12,17 @@ import (
 // Version of the application. It will be set during the build process.
 var Version = "dev"
 
-func MirrorWorker(ctx context.Context, id int, wg *sync.WaitGroup, repos <-chan *github.Repository, stats chan<- RepoSyncResult, config Config) {
+type repositoryLister func(context.Context, Config) ([]*github.Repository, error)
+type repositoryMirror func(context.Context, *github.Repository, Config) (MirrorResult, error)
+type repositorySynchronizer func(context.Context, Config) (RunStats, error)
+
+func MirrorWorker(ctx context.Context, id int, wg *sync.WaitGroup, repos <-chan *github.Repository, stats chan<- RepoSyncResult, config Config, mirror repositoryMirror) {
 	defer wg.Done()
 	log.Printf("[Worker %d] Starting\n", id)
 	ctx = context.WithValue(ctx, "worker_id", id)
 	for repo := range repos {
 		log.Printf("[Worker %d] Processing repository %s\n", id, *repo.FullName)
-		res, err := ForgejoMirror(ctx, repo, config)
+		res, err := mirror(ctx, repo, config)
 		result := RepoSyncResult{
 			Name:   *repo.FullName,
 			Result: res,
@@ -33,7 +37,11 @@ func MirrorWorker(ctx context.Context, id int, wg *sync.WaitGroup, repos <-chan 
 }
 
 func SyncRepoList(ctx context.Context, config Config) (RunStats, error) {
-	repos, err := GetGithubRepos(ctx, config)
+	return syncRepoList(ctx, config, GetGithubRepos, ForgejoMirror)
+}
+
+func syncRepoList(ctx context.Context, config Config, listRepositories repositoryLister, mirror repositoryMirror) (RunStats, error) {
+	repos, err := listRepositories(ctx, config)
 	if err != nil {
 		return RunStats{}, err
 	}
@@ -53,7 +61,7 @@ func SyncRepoList(ctx context.Context, config Config) (RunStats, error) {
 
 	for workerId := 0; workerId < config.NumWorkers; workerId++ {
 		wg.Add(1)
-		go MirrorWorker(ctx, workerId, &wg, repoChan, statsChan, config)
+		go MirrorWorker(ctx, workerId, &wg, repoChan, statsChan, config, mirror)
 	}
 
 	for _, repo := range repos {
@@ -69,6 +77,33 @@ func SyncRepoList(ctx context.Context, config Config) (RunStats, error) {
 	}
 
 	return resultsStats, nil
+}
+
+func syncOnce(ctx context.Context, config Config, synchronize repositorySynchronizer) RunStats {
+	runCtx, cancel := config.withRunTimeout(ctx)
+	defer cancel()
+
+	runStats, err := synchronize(runCtx, config)
+	log.Printf("--------------------------------------------------\n")
+	log.Printf("Results:\n")
+	if err != nil {
+		log.Printf("  Error: %s\n", err.Error())
+		log.Printf("--------------------------------------------------\n")
+		runStats.Status = "error"
+		runStats.Error = err.Error()
+		return runStats
+	}
+	runStats.Status = "success"
+	if runStats.Failed > 0 {
+		runStats.Status = "completed_with_errors"
+	}
+	log.Printf("  Total Read: %d\n", runStats.TotalRead)
+	log.Printf("  Created: %d\n", runStats.Created)
+	log.Printf("  Skipped: %d\n", runStats.Skipped)
+	log.Printf("  WouldCreate: %d\n", runStats.WouldCreate)
+	log.Printf("  Failed: %d\n", runStats.Failed)
+	log.Printf("--------------------------------------------------\n")
+	return runStats
 }
 
 func runEvery(ctx context.Context, interval time.Duration, store *StatsStore, f func(context.Context, int) RunStats) {
@@ -135,28 +170,6 @@ func main() {
 			config.log()
 			log.Println("--------------------------------------------------")
 
-			runCtx, cancel := config.withRunTimeout(ctx)
-			runStats, err := SyncRepoList(runCtx, config)
-			cancel()
-			log.Printf("--------------------------------------------------\n")
-			log.Printf("Results:\n")
-			if err != nil {
-				log.Printf("  Error: %s\n", err.Error())
-				log.Printf("--------------------------------------------------\n")
-				runStats.Status = "error"
-				runStats.Error = err.Error()
-				return runStats
-			}
-			runStats.Status = "success"
-			if runStats.Failed > 0 {
-				runStats.Status = "completed_with_errors"
-			}
-			log.Printf("  Total Read: %d\n", runStats.TotalRead)
-			log.Printf("  Created: %d\n", runStats.Created)
-			log.Printf("  Skipped: %d\n", runStats.Skipped)
-			log.Printf("  WouldCreate: %d\n", runStats.WouldCreate)
-			log.Printf("  Failed: %d\n", runStats.Failed)
-			log.Printf("--------------------------------------------------\n")
-			return runStats
+			return syncOnce(ctx, config, SyncRepoList)
 		})
 }

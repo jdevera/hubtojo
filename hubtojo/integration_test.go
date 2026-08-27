@@ -1,0 +1,137 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+	"time"
+
+	"github.com/google/go-github/v63/github"
+)
+
+func TestSynchronizationRunIsPublishedByStatsEndpoint(t *testing.T) {
+	githubServer := newIntegrationGithubServer()
+	defer githubServer.Close()
+	forgejoServer := newIntegrationForgejoServer()
+	defer forgejoServer.Close()
+
+	githubClient := github.NewClient(githubServer.Client())
+	githubClient.BaseURL, _ = url.Parse(githubServer.URL + "/")
+	listRepositories := func(ctx context.Context, config Config) ([]*github.Repository, error) {
+		return getGithubRepos(ctx, githubClient, config)
+	}
+	config := Config{
+		GithubUsername:    "source",
+		ForgejoUrl:        forgejoServer.URL,
+		ForgejoToken:      "forgejo-token",
+		ForgejoUsername:   "owner",
+		NumWorkers:        3,
+		MirrorPublicRepos: true,
+		RunTimeout:        time.Second,
+	}
+	store := NewStatsStore("integration-test", 0)
+	webServer, err := StartWebServer("127.0.0.1:0", store)
+	if err != nil {
+		t.Fatalf("start web server: %v", err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if err := webServer.Shutdown(ctx); err != nil {
+			t.Errorf("shut down web server: %v", err)
+		}
+	})
+
+	synchronize := func(ctx context.Context, config Config) (RunStats, error) {
+		return syncRepoList(ctx, config, listRepositories, ForgejoMirror)
+	}
+	runEvery(context.Background(), 0, store, func(ctx context.Context, _ int) RunStats {
+		return syncOnce(ctx, config, synchronize)
+	})
+
+	client := &http.Client{Timeout: time.Second}
+	response, err := client.Get("http://" + webServer.Addr + "/stats")
+	if err != nil {
+		t.Fatalf("get stats: %v", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("stats status = %d, want %d", response.StatusCode, http.StatusOK)
+	}
+
+	var snapshot StatsSnapshot
+	if err := json.NewDecoder(response.Body).Decode(&snapshot); err != nil {
+		t.Fatalf("decode stats: %v", err)
+	}
+	if snapshot.Version != "integration-test" {
+		t.Fatalf("version = %q, want %q", snapshot.Version, "integration-test")
+	}
+	if snapshot.CurrentRun != nil || snapshot.NextRunAt != nil {
+		t.Fatal("one-shot synchronization did not finish cleanly")
+	}
+	assertIntegrationRunStats(t, snapshot.LastRun)
+}
+
+func assertIntegrationRunStats(t *testing.T, stats *RunStats) {
+	t.Helper()
+	if stats == nil {
+		t.Fatal("last run is not present")
+	}
+	if stats.Status != "completed_with_errors" {
+		t.Fatalf("status = %q, want completed_with_errors", stats.Status)
+	}
+	if stats.TotalRead != 3 || stats.Created != 1 || stats.Skipped != 1 || stats.Failed != 1 {
+		t.Fatalf("unexpected repository counts: %+v", *stats)
+	}
+	if len(stats.CreatedRepositories) != 1 || stats.CreatedRepositories[0] != "source/create-me" {
+		t.Fatalf("created repositories = %v", stats.CreatedRepositories)
+	}
+	if len(stats.FailedRepositories) != 1 || stats.FailedRepositories[0].Name != "source/failing" {
+		t.Fatalf("failed repositories = %v", stats.FailedRepositories)
+	}
+	if stats.FinishedAt == nil || stats.StartedAt.IsZero() || stats.DurationSeconds < 0 {
+		t.Fatal("run timing information is incomplete")
+	}
+}
+
+func newIntegrationGithubServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path != "/users/source/repos" {
+			http.NotFound(w, r)
+			return
+		}
+		fmt.Fprint(w, `[
+			{"name":"create-me","full_name":"source/create-me","clone_url":"https://github.test/source/create-me.git","private":false,"fork":false},
+			{"name":"existing","full_name":"source/existing","clone_url":"https://github.test/source/existing.git","private":false,"fork":false},
+			{"name":"failing","full_name":"source/failing","clone_url":"https://github.test/source/failing.git","private":false,"fork":false}
+		]`)
+	}))
+}
+
+func newIntegrationForgejoServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/version":
+			fmt.Fprint(w, `{"version":"11.0.10"}`)
+		case "/api/v1/repos/owner/create-me":
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, `{"message":"not found"}`)
+		case "/api/v1/repos/owner/existing":
+			fmt.Fprint(w, `{"full_name":"owner/existing"}`)
+		case "/api/v1/repos/owner/failing":
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, `{"message":"backend unavailable"}`)
+		case "/api/v1/repos/migrate":
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, `{"full_name":"owner/create-me"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+}
