@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"strings"
+
 	"github.com/google/go-github/v63/github"
 )
 
@@ -37,7 +40,10 @@ func RepositoryList(ctx context.Context, client *github.Client, user string, opt
 
 func GetGithubRepos(ctx context.Context, config Config) ([]*github.Repository, error) {
 	client := github.NewClient(nil)
+	return getGithubRepos(ctx, client, config)
+}
 
+func getGithubRepos(ctx context.Context, client *github.Client, config Config) ([]*github.Repository, error) {
 	var repos []*github.Repository
 
 	opt := &ListOptions{
@@ -47,6 +53,13 @@ func GetGithubRepos(ctx context.Context, config Config) ([]*github.Repository, e
 	username := config.GithubUsername
 	if config.MirrorPrivateRepos {
 		client = client.WithAuthToken(*config.GithubToken)
+		authenticatedUser, _, err := client.Users.Get(ctx, "")
+		if err != nil {
+			return nil, fmt.Errorf("get authenticated GitHub user: %w", err)
+		}
+		if !strings.EqualFold(authenticatedUser.GetLogin(), config.GithubUsername) {
+			return nil, fmt.Errorf("GitHub token belongs to %q, expected %q", authenticatedUser.GetLogin(), config.GithubUsername)
+		}
 		username = ""
 		opt.Affiliation = "owner"
 	}
