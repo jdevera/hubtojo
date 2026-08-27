@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="hubtojo/static/hubtojo-icon.png" width="180" alt="HubToJo octopus forging a repository mirror">
+</p>
+
 # HubToJo 🐙 → ⚒️: Mirror GitHub repositories to Forgejo
 
 This program creates Forgejo mirrors of the GitHub repositories you specify.

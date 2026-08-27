@@ -4,6 +4,7 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>HubToJo Stats</title>
+	<link rel="icon" type="image/png" href="/static/favicon.png">
 	<script>
 		(function () {
 			var theme = "";
@@ -63,6 +64,18 @@
 		}
 		.page-header h1 {
 			margin: 0;
+		}
+		.brand {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			min-width: 0;
+		}
+		.brand-icon {
+			width: 56px;
+			height: 56px;
+			flex: 0 0 56px;
+			object-fit: contain;
 		}
 		.theme-toggle {
 			display: inline-flex;
@@ -138,12 +151,35 @@
 		ul {
 			padding-left: 22px;
 		}
+		@media (max-width: 420px) {
+			main {
+				padding: 24px 16px;
+			}
+			.page-header,
+			.brand {
+				gap: 8px;
+			}
+			.brand-icon {
+				width: 44px;
+				height: 44px;
+				flex-basis: 44px;
+			}
+			.theme-toggle {
+				min-width: 54px;
+			}
+			.theme-toggle > span:last-child {
+				display: none;
+			}
+		}
 	</style>
 </head>
 <body>
 <main>
 	<header class="page-header">
-		<h1>HubToJo</h1>
+		<div class="brand">
+			<img class="brand-icon" src="/static/hubtojo-icon.png" width="56" height="56" alt="">
+			<h1>HubToJo</h1>
+		</div>
 		<button class="theme-toggle" id="theme-toggle" type="button" role="switch" aria-checked="false">
 			<span class="theme-toggle-track" aria-hidden="true"><span class="theme-toggle-thumb"></span></span>
 			<span>Dark mode</span>

@@ -13,6 +13,9 @@ import (
 //go:embed templates/stats.html
 var templateFS embed.FS
 
+//go:embed static
+var staticFS embed.FS
+
 var statsPage = template.Must(template.New("stats").Funcs(template.FuncMap{
 	"formatTime":     formatWebTime,
 	"formatDuration": formatWebDuration,
@@ -30,6 +33,7 @@ func StartWebServer(addr string, store *StatsStore, metrics *Metrics) (*http.Ser
 			log.Printf("Error rendering stats page: %s\n", err)
 		}
 	})
+	mux.Handle("/static/", http.FileServerFS(staticFS))
 	mux.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(store.Snapshot()); err != nil {
