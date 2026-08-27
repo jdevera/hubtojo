@@ -3,10 +3,68 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestMakeConfigFromEnvResolvesCompleteConfiguration(t *testing.T) {
+	forgejoServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Header.Get("Authorization") != "token forgejo-token" {
+			http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		switch r.URL.Path {
+		case "/api/v1/version":
+			fmt.Fprint(w, `{"version":"11.0.10"}`)
+		case "/api/v1/user":
+			fmt.Fprint(w, `{"login":"forgejo-owner"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer forgejoServer.Close()
+
+	t.Setenv("GITHUB_USERNAME", "source-user")
+	t.Setenv("FORGEJO_URL", forgejoServer.URL)
+	t.Setenv("FORGEJO_TOKEN", "forgejo-token")
+	t.Setenv("GITHUB_TOKEN", "github-token")
+	t.Setenv("HUBTOJO_NUM_WORKERS", "7")
+	t.Setenv("HUBTOJO_MIRROR_PUBLIC_REPOS", "false")
+	t.Setenv("HUBTOJO_MIRROR_PRIVATE_REPOS", "true")
+	t.Setenv("HUBTOJO_MIRROR_FORKS", "true")
+	t.Setenv("HUBTOJO_DRY_RUN", "true")
+	t.Setenv("HUBTOJO_SYNC_INTERVAL", "42")
+	t.Setenv("HUBTOJO_RUN_TIMEOUT", "17")
+	t.Setenv("HUBTOJO_WEB_ADDR", "127.0.0.1:9090")
+
+	config, err := MakeConfigFromEnv()
+	if err != nil {
+		t.Fatalf("make config: %v", err)
+	}
+	if config.GithubUsername != "source-user" || config.ForgejoUrl != forgejoServer.URL {
+		t.Fatalf("source configuration was not loaded: %+v", config)
+	}
+	if config.ForgejoToken != "forgejo-token" || config.ForgejoUsername != "forgejo-owner" {
+		t.Fatalf("Forgejo configuration was not resolved: %+v", config)
+	}
+	if config.GithubToken == nil || *config.GithubToken != "github-token" {
+		t.Fatal("GitHub token was not loaded")
+	}
+	if config.NumWorkers != 7 || config.SyncInterval != 42 || config.RunTimeout != 17*time.Second {
+		t.Fatalf("numeric configuration was not loaded: %+v", config)
+	}
+	if config.MirrorPublicRepos || !config.MirrorPrivateRepos || !config.MirrorForks || !config.DryRun {
+		t.Fatalf("boolean configuration was not loaded: %+v", config)
+	}
+	if config.WebAddr != "127.0.0.1:9090" {
+		t.Fatalf("web address = %q, want 127.0.0.1:9090", config.WebAddr)
+	}
+}
 
 func TestRunContextUsesConfiguredTimeout(t *testing.T) {
 	config := Config{RunTimeout: 10 * time.Millisecond}
