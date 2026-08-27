@@ -10,9 +10,9 @@ import (
 
 type Config struct {
 	GithubUsername     string
-	GiteaUrl           string
-	GiteaToken         string
-	GiteaUsername      string
+	ForgejoUrl         string
+	ForgejoToken       string
+	ForgejoUsername    string
 	GithubToken        *string
 	NumWorkers         int
 	MirrorPublicRepos  bool
@@ -26,9 +26,9 @@ type Config struct {
 func (c *Config) log() {
 	log.Printf("Configuration:\n")
 	log.Printf("  Github Username: %s\n", c.GithubUsername)
-	log.Printf("  Gitea URL: %s\n", c.GiteaUrl)
-	log.Printf("  Gitea Token: ****\n")
-	log.Printf("  Gitea Username: %s\n", c.GiteaUsername)
+	log.Printf("  Forgejo URL: %s\n", c.ForgejoUrl)
+	log.Printf("  Forgejo Token: ****\n")
+	log.Printf("  Forgejo Username: %s\n", c.ForgejoUsername)
 	if c.GithubToken != nil {
 		log.Printf("  Github Token: ****\n") // Dereference pointer to print value
 	} else {
@@ -44,16 +44,16 @@ func (c *Config) log() {
 }
 
 func (c *Config) resolve() error {
-	if c.GiteaUsername == "" {
-		client, err := GiteaClient(context.Background(), *c)
+	if c.ForgejoUsername == "" {
+		client, err := ForgejoClient(context.Background(), *c)
 		if err != nil {
-			return fmt.Errorf("error creating Gitea client: %w\n", err)
+			return fmt.Errorf("error creating Forgejo client: %w\n", err)
 		}
-		username, err := GiteaGetUsername(client)
+		username, err := ForgejoGetUsername(client)
 		if err != nil {
-			return fmt.Errorf("error getting Gitea username: %w", err)
+			return fmt.Errorf("error getting Forgejo username: %w", err)
 		}
-		c.GiteaUsername = username
+		c.ForgejoUsername = username
 	}
 	return nil
 }
@@ -63,11 +63,11 @@ func (c *Config) validate() error {
 	if c.GithubUsername == "" {
 		errors = append(errors, "GITHUB_USERNAME environment variable not set")
 	}
-	if c.GiteaUrl == "" {
-		errors = append(errors, "GITEA_URL environment variable not set")
+	if c.ForgejoUrl == "" {
+		errors = append(errors, "FORGEJO_URL environment variable not set")
 	}
-	if c.GiteaToken == "" {
-		errors = append(errors, "GITEA_TOKEN environment variable not set")
+	if c.ForgejoToken == "" {
+		errors = append(errors, "FORGEJO_TOKEN environment variable not set")
 	}
 	if c.MirrorPrivateRepos && c.GithubToken == nil {
 		errors = append(errors, "GITHUB_TOKEN environment variable not set (required for mirroring private repos)")
@@ -85,11 +85,11 @@ func MakeConfigFromEnv() (Config, error) {
 	if err != nil {
 		envErrors = append(envErrors, err)
 	}
-	giteaUrl, err := GetEnvStrict("GITEA_URL")
+	forgejoUrl, err := GetEnvStrict("FORGEJO_URL")
 	if err != nil {
 		envErrors = append(envErrors, err)
 	}
-	giteaToken, err := GetEnvStrict("GITEA_TOKEN")
+	forgejoToken, err := GetEnvStrict("FORGEJO_TOKEN")
 	if err != nil {
 		envErrors = append(envErrors, err)
 	}
@@ -99,16 +99,16 @@ func MakeConfigFromEnv() (Config, error) {
 
 	c := Config{
 		GithubUsername:     githubUsername,
-		GiteaUrl:           giteaUrl,
-		GiteaToken:         giteaToken,
+		ForgejoUrl:         forgejoUrl,
+		ForgejoToken:       forgejoToken,
 		GithubToken:        GetEnvOptional("GITHUB_TOKEN"),
-		NumWorkers:         GetEnvInt("HUBTOTEA_NUM_WORKERS", 5),
-		MirrorPublicRepos:  GetEnvBool("HUBTOTEA_MIRROR_PUBLIC_REPOS", true),
-		MirrorPrivateRepos: GetEnvBool("HUBTOTEA_MIRROR_PRIVATE_REPOS", false),
-		MirrorForks:        GetEnvBool("HUBTOTEA_MIRROR_FORKS", false),
-		DryRun:             GetEnvBool("HUBTOTEA_DRY_RUN", false),
-		SyncInterval:       GetEnvInt("HUBTOTEA_SYNC_INTERVAL", 3600),
-		WebAddr:            GetEnvString("HUBTOTEA_WEB_ADDR", ":8080"),
+		NumWorkers:         GetEnvInt("HUBTOJO_NUM_WORKERS", 5),
+		MirrorPublicRepos:  GetEnvBool("HUBTOJO_MIRROR_PUBLIC_REPOS", true),
+		MirrorPrivateRepos: GetEnvBool("HUBTOJO_MIRROR_PRIVATE_REPOS", false),
+		MirrorForks:        GetEnvBool("HUBTOJO_MIRROR_FORKS", false),
+		DryRun:             GetEnvBool("HUBTOJO_DRY_RUN", false),
+		SyncInterval:       GetEnvInt("HUBTOJO_SYNC_INTERVAL", 3600),
+		WebAddr:            GetEnvString("HUBTOJO_WEB_ADDR", ":8080"),
 	}
 	err = c.validate()
 	if err != nil {

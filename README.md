@@ -1,8 +1,8 @@
-# HubToTea 🐙2️⃣🍵: Sync Github repos to Gitea
+# HubToJo 🐙 → ⚒️: Mirror GitHub repositories to Forgejo
 
-This program will create Gitea mirrors of the github repositories you specify.
+This program creates Forgejo mirrors of the GitHub repositories you specify.
 
-Best run with docker.
+Best run with Docker. Forgejo 11.0.10 or newer is required.
 
 ## How to run
 
@@ -11,10 +11,10 @@ docker run \
     -d \
     --restart=unless-stopped \
     -p 8080:8080 \
-    -e GITEA_URL="http://gitea:3000" \
-    -e GITEA_TOKEN="your gitea token" \
+    -e FORGEJO_URL="http://forgejo:3000" \
+    -e FORGEJO_TOKEN="your Forgejo token" \
     -e GITHUB_USERNAME="your github user" \
-    jdevera/hubtotea:latest
+    jdevera/hubtojo:latest
 ```
 
 The web status page is available on `/`, and the dashboard-friendly JSON stats
@@ -32,31 +32,31 @@ Each of these groups can be enabled or disabled with the environment variables.
 
 | Parameter                       | Description                                                                      | Mandatory | Default |
 |---------------------------------|----------------------------------------------------------------------------------|-----------|---------|
-| `GITEA_URL`                     | The URL of the Gitea instance that will be mirroring the repositories            | Yes       |         |
-| `GITEA_TOKEN`                   | The token to use when authenticating with the Gitea API                          | Yes       |         |
-| `GITHUB_USER`                   | The github username to mirror repositories from                                  | Yes       |         |
-| `GITHUB_TOKEN`                  | A Github token is required only when working with private repositories           | No        |         |
-| `HUBTOTEA_MIRROR_PUBLIC_REPOS`  | Set to false or 0 to not mirror public repositories. This does not affect forks. | No        | `true`  |
-| `HUBTOTEA_MIRROR_PRIVATE_REPOS` | Set to true or 1 to mirror private repositories                                  | No        | `false` |
-| `HUBTOTEA_MIRROR_FORKS`         | Set to true or 1 to mirror forks                                                 | No        | `false` |
-| `HUBTOTEA_DRY_RUN`              | Set to true or 1 to skip the write operations and instead just log them          | No        | `false` |
-| `HUBTOTEA_NUM_WORKERS`          | The number of concurrent workers to use when mirroring repositories              | No        | `5`     |
-| `HUBTOTEA_SYNC_INTERVAL`        | The interval in seconds to wait between syncs. Set to 0 to run only once         | No        | `3600`  |
-| `HUBTOTEA_WEB_ADDR`             | The address for the status page and stats endpoint                               | No        | `:8080` |
+| `FORGEJO_URL`                   | The URL of the Forgejo instance that will mirror the repositories                | Yes       |         |
+| `FORGEJO_TOKEN`                 | The token to use when authenticating with the Forgejo API                        | Yes       |         |
+| `GITHUB_USERNAME`               | The GitHub username to mirror repositories from                                  | Yes       |         |
+| `GITHUB_TOKEN`                  | A GitHub token is required only when working with private repositories           | No        |         |
+| `HUBTOJO_MIRROR_PUBLIC_REPOS`   | Set to false or 0 to not mirror public repositories. This does not affect forks. | No        | `true`  |
+| `HUBTOJO_MIRROR_PRIVATE_REPOS`  | Set to true or 1 to mirror private repositories                                  | No        | `false` |
+| `HUBTOJO_MIRROR_FORKS`          | Set to true or 1 to mirror forks                                                 | No        | `false` |
+| `HUBTOJO_DRY_RUN`               | Set to true or 1 to skip the write operations and instead just log them          | No        | `false` |
+| `HUBTOJO_NUM_WORKERS`           | The number of concurrent workers to use when mirroring repositories              | No        | `5`     |
+| `HUBTOJO_SYNC_INTERVAL`         | The interval in seconds to wait between syncs. Set to 0 to run only once         | No        | `3600`  |
+| `HUBTOJO_WEB_ADDR`              | The address for the status page and stats endpoint                               | No        | `:8080` |
 
 
 ## Custom certificates
 
-If your Gitea instance is served with a self-signed certificate, or you have a custom CA, `hubtotea` will refuse to connect.
+If your Forgejo instance is served with a self-signed certificate, or you have a custom CA, `hubtojo` will refuse to connect.
 
 You can provide a custom CA certificate by mounting it in the container. Make sure any additional certificates you want to be trusted are available in the `/usr/local/share/ca-certificates` directory.
 
-With docker:
+With Docker:
 ```bash
 -v /dir/with/certificates:/usr/local/share/ca-certificates:ro
 ```
 
-With docker compose:
+With Docker Compose:
 
 ```yaml
 volumes:

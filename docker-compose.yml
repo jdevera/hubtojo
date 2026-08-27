@@ -1,6 +1,6 @@
 services:
-  hubtotea:
-    image: jdevera/hubtotea:latest
+  hubtojo:
+    image: jdevera/hubtojo:latest
     build:
       context: .
       dockerfile: Dockerfile

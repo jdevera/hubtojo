@@ -15,7 +15,7 @@ func TestStatsPageRenders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("render stats page: %v", err)
 	}
-	if !strings.Contains(output.String(), "HubToTea") {
+	if !strings.Contains(output.String(), "HubToJo") {
 		t.Fatal("rendered stats page does not contain the application name")
 	}
 }

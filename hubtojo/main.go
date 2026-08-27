@@ -18,7 +18,7 @@ func MirrorWorker(ctx context.Context, id int, wg *sync.WaitGroup, repos <-chan 
 	ctx = context.WithValue(ctx, "worker_id", id)
 	for repo := range repos {
 		log.Printf("[Worker %d] Processing repository %s\n", id, *repo.FullName)
-		res, err := GiteaMirror(ctx, repo, config)
+		res, err := ForgejoMirror(ctx, repo, config)
 		result := RepoSyncResult{
 			Name:   *repo.FullName,
 			Result: res,
@@ -104,7 +104,7 @@ func main() {
 	log.SetFlags(0)
 	config, err := MakeConfigFromEnv()
 	if err != nil {
-		log.Fatalf("HubToTea version: %s\nConfig error: %s\n", Version, err)
+		log.Fatalf("HubToJo version: %s\nConfig error: %s\n", Version, err)
 	}
 
 	statsStore := NewStatsStore(Version, config.SyncInterval)
@@ -116,7 +116,7 @@ func main() {
 		statsStore,
 		func(runCount int) RunStats {
 			log.Println("--------------------------------------------------")
-			log.Printf("HubToTea version: %s\n", Version)
+			log.Printf("HubToJo version: %s\n", Version)
 			log.Printf("Run #%d\n", runCount)
 			config.log()
 			log.Println("--------------------------------------------------")

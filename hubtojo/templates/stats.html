@@ -3,12 +3,12 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>HubToTea Stats</title>
+	<title>HubToJo Stats</title>
 	<script>
 		(function () {
 			var theme = "";
 			try {
-				theme = localStorage.getItem("hubtotea-theme") || "";
+				theme = localStorage.getItem("hubtojo-theme") || "";
 			} catch (error) {
 				// Storage may be unavailable in a restricted browser context.
 			}
@@ -143,14 +143,14 @@
 <body>
 <main>
 	<header class="page-header">
-		<h1>HubToTea</h1>
+		<h1>HubToJo</h1>
 		<button class="theme-toggle" id="theme-toggle" type="button" role="switch" aria-checked="false">
 			<span class="theme-toggle-track" aria-hidden="true"><span class="theme-toggle-thumb"></span></span>
 			<span>Dark mode</span>
 		</button>
 	</header>
 	<p>Version <code>{{ .Version }}</code>. Service started {{ formatTime .ServiceStartedAt }}.</p>
-	<p><a href="https://github.com/jdevera/hubtotea">GitHub repository</a></p>
+	<p><a href="https://github.com/jdevera/hubtojo">GitHub repository</a></p>
 	<p>Stats JSON: <a href="/stats">/stats</a></p>
 
 	{{ if .CurrentRun }}
@@ -224,7 +224,7 @@
 				var theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
 				document.documentElement.dataset.theme = theme;
 				try {
-					localStorage.setItem("hubtotea-theme", theme);
+					localStorage.setItem("hubtojo-theme", theme);
 				} catch (error) {
 					// The selected theme still applies for the current page.
 				}

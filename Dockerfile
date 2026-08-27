@@ -1,16 +1,16 @@
 # Build stage
-FROM golang:1.22-alpine as builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 RUN apk --no-cache add git
-COPY hubtotea/go.mod hubtotea/go.sum ./
+COPY hubtojo/go.mod hubtojo/go.sum ./
 RUN go mod download
 RUN --mount=target=. \
   mkdir -p /build && \
-  cd hubtotea && \
+  cd hubtojo && \
   CGO_ENABLED=0 \
   go build -ldflags "-X main.Version=$(git describe --tags --always)" -a -installsuffix cgo \
-  -o /build/hubtotea \
+  -o /build/hubtojo \
   .
 
 # Final stage
@@ -21,7 +21,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /app
 
 # Copy the pre-built binary from the previous stage
-COPY --from=builder /build/hubtotea .
+COPY --from=builder /build/hubtojo .
 
 # COPY the entrypoint script that will load certificates and run the binary
 COPY docker/entrypoint.sh .
@@ -31,4 +31,4 @@ ENTRYPOINT ["/app/entrypoint.sh"]
 EXPOSE 8080
 
 # Run the executable
-CMD ["./hubtotea"]
+CMD ["./hubtojo"]
