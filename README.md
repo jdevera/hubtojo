@@ -20,6 +20,77 @@ docker run \
 The web status page is available on `/`, and the dashboard-friendly JSON stats
 endpoint is available on `/stats`.
 
+## Status endpoint
+
+`GET /stats` returns the current service state and the latest synchronization
+results as JSON:
+
+```bash
+curl http://localhost:8080/stats
+```
+
+```json
+{
+  "version": "v0.2.0",
+  "service_started_at": "2026-08-27T17:14:07Z",
+  "sync_interval_seconds": 3600,
+  "next_run_at": "2026-08-27T18:14:07Z",
+  "last_run": {
+    "run_count": 4,
+    "status": "completed_with_errors",
+    "started_at": "2026-08-27T17:14:07Z",
+    "finished_at": "2026-08-27T17:14:19Z",
+    "duration_seconds": 12.4,
+    "total_read": 5,
+    "created": 2,
+    "skipped": 2,
+    "would_create": 0,
+    "failed": 1,
+    "created_repositories": [
+      "example/new-repository",
+      "example/another-repository"
+    ],
+    "would_create_repositories": null,
+    "failed_repositories": [
+      {
+        "name": "example/failed-repository",
+        "error": "migration failed"
+      }
+    ]
+  }
+}
+```
+
+Top-level fields:
+
+| Field | Meaning |
+|-------|---------|
+| `version` | HubToJo version embedded when the image was built |
+| `service_started_at` | Service start time in RFC 3339 format |
+| `sync_interval_seconds` | Configured delay between synchronization runs |
+| `next_run_at` | Scheduled start time of the next run; absent while running and in one-shot mode |
+| `current_run` | Present while a run is active; includes its number, `running` status, and start time |
+| `last_run` | Most recently completed run; remains available while the next run is active |
+
+Run statuses:
+
+| Status | Meaning |
+|--------|---------|
+| `running` | A synchronization is in progress |
+| `success` | The run completed without repository failures |
+| `completed_with_errors` | The run completed, but one or more repositories failed |
+| `error` | The run itself failed, such as when the GitHub repository list could not be fetched; details are in `error` |
+
+The repository arrays identify newly created mirrors, dry-run candidates, and
+individual failures. Empty arrays are currently encoded as `null`, so clients
+should treat `null` as an empty list. Result counters are finalized when a run
+completes; `current_run` reports lifecycle state rather than live progress.
+
+The web page and `/stats` do not require authentication. They never include
+configured tokens, but repository names and error messages may be sensitive.
+Protect port 8080 with network policy or an authenticated reverse proxy when it
+should not be publicly accessible.
+
 ## Releases
 
 Release images are published to the GitHub Container Registry for Linux AMD64
