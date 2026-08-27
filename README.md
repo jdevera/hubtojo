@@ -80,3 +80,18 @@ volumes:
 ```
 
 The container will automatically trust any certificates in that directory.
+
+## Development
+
+Install [prek](https://prek.j178.dev/), then install the repository hooks:
+
+```bash
+brew install prek
+prek install
+```
+
+Run every check against the full repository with:
+
+```bash
+prek run --all-files
+```

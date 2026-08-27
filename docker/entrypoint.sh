@@ -7,4 +7,3 @@ fi
 
 # Start the application
 exec "$@"
-

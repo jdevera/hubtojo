@@ -1,0 +1,56 @@
+repos:
+  - repo: builtin
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
+      - id: check-yaml
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: gofmt
+        entry: scripts/check-gofmt.sh
+        language: system
+        types: [go]
+      - id: go-mod-tidy
+        name: go mod tidy
+        entry: go -C hubtojo mod tidy -diff
+        language: system
+        pass_filenames: false
+        files: ^hubtojo/(go\.mod|go\.sum|.*\.go)$
+      - id: go-test
+        name: go test
+        entry: go -C hubtojo test ./...
+        language: system
+        pass_filenames: false
+        files: ^hubtojo/
+      - id: go-vet
+        name: go vet
+        entry: go -C hubtojo vet ./...
+        language: system
+        pass_filenames: false
+        files: ^hubtojo/
+      - id: govulncheck
+        name: govulncheck
+        entry: go -C hubtojo run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
+        language: system
+        pass_filenames: false
+        files: ^hubtojo/(go\.mod|go\.sum|.*\.go)$
+      - id: actionlint
+        name: actionlint
+        entry: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+        language: system
+        files: ^\.github/workflows/.*\.ya?ml$
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
